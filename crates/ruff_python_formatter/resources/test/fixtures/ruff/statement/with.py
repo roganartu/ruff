@@ -86,10 +86,6 @@ with (
     )
 ): ...
 
-with (a # trailing same line comment
-    # trailing own line comment
-    ) as b: ...
-
 with (
     a # trailing same line comment
     # trailing own line comment
