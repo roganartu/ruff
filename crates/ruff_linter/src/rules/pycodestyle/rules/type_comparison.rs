@@ -3,26 +3,28 @@ use ruff_diagnostics::{Diagnostic, Violation};
 use ruff_macros::{derive_message_formats, violation};
 use ruff_python_ast::helpers::is_const_none;
 use ruff_python_ast::{self as ast, CmpOp, Expr};
+use ruff_python_semantic::SemanticModel;
 use ruff_text_size::Ranged;
 
 use crate::checkers::ast::Checker;
 
 /// ## What it does
-/// Checks for object type comparisons without using `isinstance()`.
+/// Checks for object type comparisons using `==` and other comparison
+/// operators.
 ///
 /// ## Why is this bad?
-/// Do not compare types directly.
+/// When comparing types, prefer `is` and `is not`, or `isinstance()` for
+/// object inheritance checks.
 ///
-/// When checking if an object is a instance of a certain type, keep in mind
-/// that it might be subclassed. For example, `bool` inherits from `int`, and
-/// `Exception` inherits from `BaseException`.
+/// Unlike a direct type comparison, `isinstance` will also check if an object
+/// is an instance of a class or a subclass thereof.
 ///
 /// ## Example
 /// ```python
-/// if type(obj) is type(1):
+/// if type(obj) == type(1):
 ///     pass
 ///
-/// if type(obj) is int:
+/// if type(obj) == int:
 ///     pass
 /// ```
 ///
@@ -37,90 +39,57 @@ pub struct TypeComparison;
 impl Violation for TypeComparison {
     #[derive_message_formats]
     fn message(&self) -> String {
-        format!("Do not compare types, use `isinstance()`")
+        format!(
+            "Use `is` and `is not` for type comparisons, or `isinstance()` for isinstance checks"
+        )
     }
 }
 
 /// E721
 pub(crate) fn type_comparison(checker: &mut Checker, compare: &ast::ExprCompare) {
-    for ((left, right), op) in std::iter::once(compare.left.as_ref())
+    for (left, right) in std::iter::once(compare.left.as_ref())
         .chain(compare.comparators.iter())
         .tuple_windows()
         .zip(compare.ops.iter())
+        .filter(|(_, op)| matches!(op, CmpOp::Eq | CmpOp::NotEq))
+        .map(|((left, right), _)| (left, right))
     {
-        if !matches!(op, CmpOp::Is | CmpOp::IsNot | CmpOp::Eq | CmpOp::NotEq) {
-            continue;
+        if is_type(left, checker.semantic()) || is_type(right, checker.semantic()) {
+            checker
+                .diagnostics
+                .push(Diagnostic::new(TypeComparison, compare.range()));
         }
+    }
+}
 
-        // Left-hand side must be, e.g., `type(obj)`.
-        let Expr::Call(ast::ExprCall { func, .. }) = left else {
-            continue;
-        };
+/// Returns `true` if the [`Expr`] is known to evaluate to a type (e.g., `int`, or `type(1)`).
+fn is_type(expr: &Expr, semantic: &SemanticModel) -> bool {
+    match expr {
+        Expr::Call(ast::ExprCall {
+            func, arguments, ..
+        }) => {
+            // Ex) `type(obj) == type(1)`
+            let Expr::Name(ast::ExprName { id, .. }) = func.as_ref() else {
+                return false;
+            };
 
-        let Expr::Name(ast::ExprName { id, .. }) = func.as_ref() else {
-            continue;
-        };
+            if !(id == "type" && semantic.is_builtin("type")) {
+                return false;
+            };
 
-        if !(id == "type" && checker.semantic().is_builtin("type")) {
-            continue;
+            // Allow comparison for types which are not obvious.
+            arguments
+                .args
+                .first()
+                .is_some_and(|arg| !arg.is_name_expr() && !is_const_none(arg))
         }
-
-        // Right-hand side must be, e.g., `type(1)` or `int`.
-        match right {
-            Expr::Call(ast::ExprCall {
-                func, arguments, ..
-            }) => {
-                // Ex) `type(obj) is type(1)`
-                let Expr::Name(ast::ExprName { id, .. }) = func.as_ref() else {
-                    continue;
-                };
-
-                if id == "type" && checker.semantic().is_builtin("type") {
-                    // Allow comparison for types which are not obvious.
-                    if arguments
-                        .args
-                        .first()
-                        .is_some_and(|arg| !arg.is_name_expr() && !is_const_none(arg))
-                    {
-                        checker
-                            .diagnostics
-                            .push(Diagnostic::new(TypeComparison, compare.range()));
-                    }
-                }
-            }
-            Expr::Attribute(ast::ExprAttribute { value, .. }) => {
-                // Ex) `type(obj) is types.NoneType`
-                if checker
-                    .semantic()
-                    .resolve_call_path(value.as_ref())
-                    .is_some_and(|call_path| matches!(call_path.as_slice(), ["types", ..]))
-                {
-                    checker
-                        .diagnostics
-                        .push(Diagnostic::new(TypeComparison, compare.range()));
-                }
-            }
-            Expr::Name(ast::ExprName { id, .. }) => {
-                // Ex) `type(obj) is int`
-                if matches!(
-                    id.as_str(),
-                    "int"
-                        | "str"
-                        | "float"
-                        | "bool"
-                        | "complex"
-                        | "bytes"
-                        | "list"
-                        | "dict"
-                        | "set"
-                ) && checker.semantic().is_builtin(id)
-                {
-                    checker
-                        .diagnostics
-                        .push(Diagnostic::new(TypeComparison, compare.range()));
-                }
-            }
-            _ => {}
+        Expr::Name(ast::ExprName { id, .. }) => {
+            // Ex) `type(obj) == int`
+            matches!(
+                id.as_str(),
+                "int" | "str" | "float" | "bool" | "complex" | "bytes" | "list" | "dict" | "set"
+            ) && semantic.is_builtin(id)
         }
+        _ => false,
     }
 }
