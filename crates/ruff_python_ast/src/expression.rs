@@ -73,6 +73,7 @@ impl<'a> From<&'a Expr> for ExpressionRef<'a> {
             Expr::Tuple(value) => ExpressionRef::Tuple(value),
             Expr::Slice(value) => ExpressionRef::Slice(value),
             Expr::IpyEscapeCommand(value) => ExpressionRef::IpyEscapeCommand(value),
+            Expr::StringList(_) => todo!(),
         }
     }
 }

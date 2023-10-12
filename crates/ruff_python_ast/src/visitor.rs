@@ -540,6 +540,7 @@ pub fn walk_expr<'a, V: Visitor<'a> + ?Sized>(visitor: &mut V, expr: &'a Expr) {
             }
         }
         Expr::IpyEscapeCommand(_) => {}
+        Expr::StringList(_) => todo!(),
     }
 }
 

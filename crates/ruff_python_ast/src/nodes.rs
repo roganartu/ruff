@@ -593,6 +593,8 @@ pub enum Expr {
     FString(ExprFString),
     #[is(name = "constant_expr")]
     Constant(ExprConstant),
+    #[is(name = "string_list_expr")]
+    StringList(ExprStringList),
     #[is(name = "attribute_expr")]
     Attribute(ExprAttribute),
     #[is(name = "subscript_expr")]
@@ -951,6 +953,42 @@ pub struct ExprConstant {
 impl From<ExprConstant> for Expr {
     fn from(payload: ExprConstant) -> Self {
         Expr::Constant(payload)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ExprStringList {
+    pub range: TextRange,
+    pub values: Vec<StringType>,
+}
+
+impl From<ExprStringList> for Expr {
+    fn from(payload: ExprStringList) -> Self {
+        Expr::StringList(payload)
+    }
+}
+
+impl Ranged for ExprStringList {
+    fn range(&self) -> TextRange {
+        self.range
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, is_macro::Is)]
+pub enum StringType {
+    Constant(ExprConstant),
+    FString(ExprFString),
+}
+
+impl From<ExprConstant> for StringType {
+    fn from(payload: ExprConstant) -> Self {
+        StringType::Constant(payload)
+    }
+}
+
+impl From<ExprFString> for StringType {
+    fn from(payload: ExprFString) -> Self {
+        StringType::FString(payload)
     }
 }
 
@@ -3058,6 +3096,7 @@ impl Ranged for crate::Expr {
             Self::FormattedValue(node) => node.range(),
             Self::FString(node) => node.range(),
             Self::Constant(node) => node.range(),
+            Self::StringList(node) => node.range(),
             Self::Attribute(node) => node.range(),
             Self::Subscript(node) => node.range(),
             Self::Starred(node) => node.range(),
@@ -3361,6 +3400,11 @@ impl From<ExprFString> for ParenthesizedExpr {
 impl From<ExprConstant> for ParenthesizedExpr {
     fn from(payload: ExprConstant) -> Self {
         Expr::Constant(payload).into()
+    }
+}
+impl From<ExprStringList> for ParenthesizedExpr {
+    fn from(payload: ExprStringList) -> Self {
+        Expr::StringList(payload).into()
     }
 }
 impl From<ExprAttribute> for ParenthesizedExpr {

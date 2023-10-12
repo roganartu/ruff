@@ -101,6 +101,7 @@ impl FormatRule<Expr, PyFormatContext<'_>> for FormatExpr {
             Expr::Tuple(expr) => expr.format().fmt(f),
             Expr::Slice(expr) => expr.format().fmt(f),
             Expr::IpyEscapeCommand(expr) => expr.format().fmt(f),
+            Expr::StringList(_) => todo!(),
         });
 
         let parenthesize = match parentheses {
@@ -316,6 +317,7 @@ impl NeedsParentheses for Expr {
             Expr::Tuple(expr) => expr.needs_parentheses(parent, context),
             Expr::Slice(expr) => expr.needs_parentheses(parent, context),
             Expr::IpyEscapeCommand(_) => todo!(),
+            Expr::StringList(_) => todo!(),
         }
     }
 }
@@ -544,6 +546,7 @@ impl<'input> CanOmitOptionalParenthesesVisitor<'input> {
             | Expr::Name(_)
             | Expr::Slice(_) => {}
             Expr::IpyEscapeCommand(_) => todo!(),
+            Expr::StringList(_) => todo!(),
         };
 
         walk_expr(self, expr);

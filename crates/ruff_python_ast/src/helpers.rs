@@ -247,6 +247,7 @@ pub fn any_over_expr(expr: &Expr, func: &dyn Fn(&Expr) -> bool) -> bool {
         }
         Expr::Name(_) | Expr::Constant(_) => false,
         Expr::IpyEscapeCommand(_) => false,
+        Expr::StringList(_) => todo!(),
     }
 }
 

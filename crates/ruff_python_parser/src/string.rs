@@ -1,60 +1,14 @@
 //! Parsing of string literals, bytes literals, and implicit string concatenation.
 
-use ruff_python_ast::{self as ast, BytesConstant, Constant, Expr, StringConstant};
-use ruff_text_size::{Ranged, TextLen, TextRange, TextSize};
+use ast::BytesConstant;
+use ruff_python_ast::{self as ast, Constant, Expr, StringConstant};
+use ruff_text_size::{TextLen, TextRange, TextSize};
 
 use crate::lexer::{LexicalError, LexicalErrorType};
 use crate::token::{StringKind, Tok};
 
 // unicode_name2 does not expose `MAX_NAME_LENGTH`, so we replicate that constant here, fix #3798
 const MAX_UNICODE_NAME: usize = 88;
-
-pub(crate) struct StringConstantWithRange {
-    value: StringConstant,
-    range: TextRange,
-}
-
-impl Ranged for StringConstantWithRange {
-    fn range(&self) -> TextRange {
-        self.range
-    }
-}
-
-pub(crate) struct BytesConstantWithRange {
-    value: BytesConstant,
-    range: TextRange,
-}
-
-impl Ranged for BytesConstantWithRange {
-    fn range(&self) -> TextRange {
-        self.range
-    }
-}
-
-pub(crate) enum StringType {
-    Str(StringConstantWithRange),
-    Bytes(BytesConstantWithRange),
-    FString(ast::ExprFString),
-}
-
-impl Ranged for StringType {
-    fn range(&self) -> TextRange {
-        match self {
-            Self::Str(node) => node.range(),
-            Self::Bytes(node) => node.range(),
-            Self::FString(node) => node.range(),
-        }
-    }
-}
-
-impl StringType {
-    fn is_unicode(&self) -> bool {
-        match self {
-            Self::Str(StringConstantWithRange { value, .. }) => value.unicode,
-            _ => false,
-        }
-    }
-}
 
 struct StringParser<'a> {
     chars: std::str::Chars<'a>,
@@ -249,9 +203,8 @@ impl<'a> StringParser<'a> {
         }))
     }
 
-    fn parse_bytes(&mut self) -> Result<StringType, LexicalError> {
+    fn parse_bytes(&mut self) -> Result<Constant, LexicalError> {
         let mut content = String::new();
-        let start_location = self.get_pos();
         while let Some(ch) = self.next_char() {
             match ch {
                 '\\' if !self.kind.is_raw() => {
@@ -271,15 +224,14 @@ impl<'a> StringParser<'a> {
             }
         }
 
-        Ok(StringType::Bytes(BytesConstantWithRange {
-            value: content.chars().map(|c| c as u8).collect::<Vec<u8>>().into(),
-            range: self.range(start_location),
+        Ok(Constant::Bytes(BytesConstant {
+            value: content.chars().map(|c| c as u8).collect::<Vec<u8>>(),
+            implicit_concatenated: false,
         }))
     }
 
-    fn parse_string(&mut self) -> Result<StringType, LexicalError> {
+    fn parse_string(&mut self) -> Result<Constant, LexicalError> {
         let mut value = String::new();
-        let start_location = self.get_pos();
         while let Some(ch) = self.next_char() {
             match ch {
                 '\\' if !self.kind.is_raw() => {
@@ -288,17 +240,14 @@ impl<'a> StringParser<'a> {
                 ch => value.push(ch),
             }
         }
-        Ok(StringType::Str(StringConstantWithRange {
-            value: StringConstant {
-                value,
-                unicode: self.kind.is_unicode(),
-                implicit_concatenated: false,
-            },
-            range: self.range(start_location),
+        Ok(Constant::Str(StringConstant {
+            value,
+            unicode: self.kind.is_unicode(),
+            implicit_concatenated: false,
         }))
     }
 
-    fn parse(&mut self) -> Result<StringType, LexicalError> {
+    fn parse(&mut self) -> Result<Constant, LexicalError> {
         if self.kind.is_any_bytes() {
             self.parse_bytes()
         } else {
@@ -312,7 +261,7 @@ pub(crate) fn parse_string_literal(
     kind: StringKind,
     triple_quoted: bool,
     start_location: TextSize,
-) -> Result<StringType, LexicalError> {
+) -> Result<Constant, LexicalError> {
     let start_location = start_location
         + kind.prefix_len()
         + if triple_quoted {
@@ -334,162 +283,6 @@ pub(crate) fn parse_fstring_middle(
         StringKind::String
     };
     StringParser::new(source, kind, start_location).parse_fstring_middle()
-}
-
-/// Concatenate a list of string literals into a single string expression.
-pub(crate) fn concatenate_strings(
-    strings: Vec<StringType>,
-    range: TextRange,
-) -> Result<Expr, LexicalError> {
-    #[cfg(debug_assertions)]
-    debug_assert!(!strings.is_empty());
-
-    let mut has_fstring = false;
-    let mut byte_literal_count = 0;
-    for string in &strings {
-        match string {
-            StringType::FString(_) => has_fstring = true,
-            StringType::Bytes(_) => byte_literal_count += 1,
-            StringType::Str(_) => {}
-        }
-    }
-    let has_bytes = byte_literal_count > 0;
-    let implicit_concatenated = strings.len() > 1;
-
-    if has_bytes && byte_literal_count < strings.len() {
-        return Err(LexicalError {
-            error: LexicalErrorType::OtherError(
-                "cannot mix bytes and nonbytes literals".to_owned(),
-            ),
-            location: range.start(),
-        });
-    }
-
-    if has_bytes {
-        let mut content: Vec<u8> = vec![];
-        for string in strings {
-            match string {
-                StringType::Bytes(BytesConstantWithRange {
-                    value: BytesConstant { value, .. },
-                    ..
-                }) => content.extend(value),
-                _ => unreachable!("Unexpected non-bytes literal."),
-            }
-        }
-        return Ok(ast::ExprConstant {
-            value: Constant::Bytes(BytesConstant {
-                value: content,
-                implicit_concatenated,
-            }),
-            range,
-        }
-        .into());
-    }
-
-    if !has_fstring {
-        let mut content = String::new();
-        let is_unicode = strings.first().map_or(false, StringType::is_unicode);
-        for string in strings {
-            match string {
-                StringType::Str(StringConstantWithRange {
-                    value: StringConstant { value, .. },
-                    ..
-                }) => content.push_str(&value),
-                _ => unreachable!("Unexpected non-string literal."),
-            }
-        }
-        return Ok(ast::ExprConstant {
-            value: Constant::Str(StringConstant {
-                value: content,
-                unicode: is_unicode,
-                implicit_concatenated,
-            }),
-            range,
-        }
-        .into());
-    }
-
-    // De-duplicate adjacent constants.
-    let mut deduped: Vec<Expr> = vec![];
-    let mut current = String::new();
-    let mut current_start = range.start();
-    let mut current_end = range.end();
-    let mut is_unicode = false;
-
-    let take_current = |current: &mut String, start, end, unicode| -> Expr {
-        Expr::Constant(ast::ExprConstant {
-            value: Constant::Str(StringConstant {
-                value: std::mem::take(current),
-                unicode,
-                implicit_concatenated,
-            }),
-            range: TextRange::new(start, end),
-        })
-    };
-
-    for string in strings {
-        let string_range = string.range();
-        match string {
-            StringType::FString(ast::ExprFString { values, .. }) => {
-                for value in values {
-                    let value_range = value.range();
-                    match value {
-                        Expr::FormattedValue { .. } => {
-                            if !current.is_empty() {
-                                deduped.push(take_current(
-                                    &mut current,
-                                    current_start,
-                                    current_end,
-                                    is_unicode,
-                                ));
-                            }
-                            deduped.push(value);
-                            is_unicode = false;
-                        }
-                        Expr::Constant(ast::ExprConstant {
-                            value: Constant::Str(StringConstant { value, unicode, .. }),
-                            ..
-                        }) => {
-                            if current.is_empty() {
-                                is_unicode |= unicode;
-                                current_start = value_range.start();
-                            }
-                            current_end = value_range.end();
-                            current.push_str(&value);
-                        }
-                        _ => unreachable!("Expected `Expr::FormattedValue` or `Expr::Constant`"),
-                    }
-                }
-            }
-            StringType::Str(StringConstantWithRange {
-                value: StringConstant { value, unicode, .. },
-                ..
-            }) => {
-                if current.is_empty() {
-                    is_unicode |= unicode;
-                    current_start = string_range.start();
-                }
-                current_end = string_range.end();
-                current.push_str(&value);
-            }
-            StringType::Bytes(_) => unreachable!("Unexpected bytes literal."),
-        }
-    }
-    if !current.is_empty() {
-        deduped.push(take_current(
-            &mut current,
-            current_start,
-            current_end,
-            is_unicode,
-        ));
-    }
-
-    Ok(ast::ExprFString {
-        values: deduped,
-        implicit_concatenated,
-        range,
-    }
-    .into())
 }
 
 // TODO: consolidate these with ParseError

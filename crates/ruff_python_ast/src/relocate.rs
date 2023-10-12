@@ -202,5 +202,6 @@ pub fn relocate_expr(expr: &mut Expr, location: TextRange) {
         Expr::IpyEscapeCommand(nodes::ExprIpyEscapeCommand { range, .. }) => {
             *range = location;
         }
+        Expr::StringList(_) => todo!(),
     }
 }

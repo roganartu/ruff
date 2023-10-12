@@ -1163,6 +1163,7 @@ impl<'a> Generator<'a> {
             Expr::IpyEscapeCommand(ast::ExprIpyEscapeCommand { kind, value, .. }) => {
                 self.p(&format!("{kind}{value}"));
             }
+            Expr::StringList(_) => todo!(),
         }
     }
 

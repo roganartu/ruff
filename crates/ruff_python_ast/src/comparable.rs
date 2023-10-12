@@ -960,6 +960,7 @@ impl<'a> From<&'a ast::Expr> for ComparableExpr<'a> {
                 kind: *kind,
                 value: value.as_str(),
             }),
+            ast::Expr::StringList(_) => todo!(),
         }
     }
 }
