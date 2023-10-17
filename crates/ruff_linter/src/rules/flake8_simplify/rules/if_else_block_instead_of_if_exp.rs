@@ -130,7 +130,7 @@ pub(crate) fn use_ternary_operator(checker: &mut Checker, stmt: &Stmt) {
         &contents,
         stmt.into(),
         checker.locator(),
-        checker.settings.line_length,
+        checker.settings.line_width,
         checker.settings.tab_size,
     ) {
         return;

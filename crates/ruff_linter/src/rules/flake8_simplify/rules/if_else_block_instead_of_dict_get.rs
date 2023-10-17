@@ -171,7 +171,7 @@ pub(crate) fn use_dict_get_with_default(checker: &mut Checker, stmt_if: &ast::St
         &contents,
         stmt_if.into(),
         checker.locator(),
-        checker.settings.line_length,
+        checker.settings.line_width,
         checker.settings.tab_size,
     ) {
         return;

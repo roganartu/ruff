@@ -77,15 +77,15 @@ Let's create a `pyproject.toml` file in our project's root directory:
 
 ```toml
 [tool.ruff]
-# Decrease the maximum line length to 79 characters.
-line-length = 79
+# Decrease the maximum line width to 79.
+line-width = 79
 ```
 
 Running Ruff again, we can see that it now enforces a line length of 79 characters:
 
 ```shell
 ❯ ruff check .
-numbers/numbers.py:6:80: E501 Line too long (83 > 79 characters)
+numbers/numbers.py:6:80: E501 Line too long (83 > 79 width)
 Found 1 error.
 ```
 
@@ -98,8 +98,8 @@ specifically, we'll want to make note of the minimum supported Python version:
 requires-python = ">=3.10"
 
 [tool.ruff]
-# Decrease the maximum line length to 79 characters.
-line-length = 79
+# Decrease the maximum line width to 79 characters.
+line-width = 79
 src = ["src"]
 ```
 
@@ -135,7 +135,7 @@ the use of `List` instead of its standard-library variant:
 ```shell
 ❯ ruff check .
 numbers/numbers.py:5:31: UP006 [*] Use `list` instead of `List` for type annotations
-numbers/numbers.py:6:80: E501 Line too long (83 > 79 characters)
+numbers/numbers.py:6:80: E501 Line too long (83 > 79 width)
 Found 2 errors.
 [*] 1 potentially fixable with the --fix option.
 ```
@@ -163,7 +163,7 @@ If we run Ruff again, we'll see that it now enforces the pydocstyle rules:
 numbers/__init__.py:1:1: D104 Missing docstring in public package
 numbers/numbers.py:1:1: D100 Missing docstring in public module
 numbers/numbers.py:5:31: UP006 [*] Use `list` instead of `List` for type annotations
-numbers/numbers.py:5:80: E501 Line too long (83 > 79 characters)
+numbers/numbers.py:5:80: E501 Line too long (83 > 79 width)
 Found 3 errors.
 [*] 1 potentially fixable with the --fix option.
 ```
@@ -188,7 +188,7 @@ Running Ruff again, we'll see that it no longer flags the `List` import:
 ❯ ruff check .
 numbers/__init__.py:1:1: D104 Missing docstring in public package
 numbers/numbers.py:1:1: D100 Missing docstring in public module
-numbers/numbers.py:5:80: E501 Line too long (83 > 79 characters)
+numbers/numbers.py:5:80: E501 Line too long (83 > 79 width)
 Found 3 errors.
 ```
 
