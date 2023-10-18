@@ -79,7 +79,7 @@ def _make_ssl_transport(
     ...
 ```
 
-Like Black, the Ruff Formatter does _not_ support extensive code style configuration; however,
+Like Black, the Ruff formatter does _not_ support extensive code style configuration; however,
 unlike Black, it _does_ support configuring the desired quote style, indent style, line endings,
 and more. (See: [_Configuration_](#configuration).)
 
