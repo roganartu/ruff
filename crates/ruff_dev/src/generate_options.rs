@@ -117,6 +117,21 @@ fn emit_field(output: &mut String, name: &str, field: &OptionField, parent_set: 
         field.example
     ));
     output.push('\n');
+
+    if let Some(deprecated) = &field.deprecated {
+        output.push_str("> **Warning**\n");
+        output.push_str("> This option is deprecated");
+
+        if let Some(since) = deprecated.since {
+            write!(output, " (since {since})").unwrap();
+        }
+
+        if let Some(message) = deprecated.message {
+            writeln!(output, ": {message}").unwrap();
+        } else {
+            output.push('.');
+        }
+    }
 }
 
 #[derive(Default)]
