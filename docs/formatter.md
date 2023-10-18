@@ -98,7 +98,7 @@ Going forward, the Ruff Formatter will support Black's preview style under Ruff'
 The Ruff Formatter exposes a small set of configuration options, some of which are also supported
 by Black (like line width), some of which are unique to Ruff (like quote and indentation style).
 
-For example, to configure the formatter to use double single quotes, a line width of 100, and
+For example, to configure the formatter to use single quotes, a line width of 100, and
 tab indentation, add the following to your `pyproject.toml`:
 
 ```toml
