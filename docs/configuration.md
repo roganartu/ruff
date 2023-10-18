@@ -191,7 +191,7 @@ settings in each directory's `pyproject.toml` file.
 By default, Ruff will also skip any files that are omitted via `.ignore`, `.gitignore`,
 `.git/info/exclude`, and global `gitignore` files (see: [`respect-gitignore`](settings.md#respect-gitignore)).
 
-Files that are passed to `ruff` directly are always linted, regardless of the above criteria.
+Files that are passed to `ruff` directly are always analyzed, regardless of the above criteria.
 For example, `ruff check /path/to/excluded/file.py` will always lint `file.py`.
 
 ## Jupyter Notebook discovery
