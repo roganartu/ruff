@@ -21,7 +21,7 @@ For the full list of supported options, run `ruff format --help`.
 
 ## Philosophy
 
-The goal of the Ruff Formatter is _not_ to innovate on code style, but rather, to innovate on
+The goal of the Ruff formatter is _not_ to innovate on code style, but rather, to innovate on
 performance, and provide a unified toolchain across Ruff's linter, formatter, and any and all
 future tools.
 
