@@ -202,7 +202,7 @@ If you're looking to use Ruff, but rely on an unsupported Flake8 plugin, feel fr
 
 ## Do I have to use Ruff's linter and formatter together?
 
-Nope! Ruff's linter and Formatter can be used independently of one another -- you can use
+Nope! Ruff's linter and formatter can be used independently of one another -- you can use
 Ruff as a formatter, but not a linter, or vice versa.
 
 ## What versions of Python does Ruff support?
