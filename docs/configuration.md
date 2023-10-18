@@ -196,7 +196,7 @@ For example, `ruff check /path/to/excluded/file.py` will always lint `file.py`.
 
 ## Jupyter Notebook discovery
 
-Ruff has built-in support for linting [Jupyter Notebooks](https://jupyter.org/).
+Ruff has built-in support for [Jupyter Notebooks](https://jupyter.org/).
 
 To opt in to linting and formatting Jupyter Notebook (`.ipynb`) files, add the `*.ipynb` pattern to
 your [`extend-include`](settings.md#extend-include) setting, like so:
